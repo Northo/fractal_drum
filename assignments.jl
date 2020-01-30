@@ -118,14 +118,74 @@ function get_component_lists(points)
     return x_list, y_list
 end
 
-for l in 1:3
-    println(length(
-        create_square_fractal(l)
-    ))
+# Finding inside and outside of structure ###################
+## First method of checking,
+## scanning out for each cell. Does not work,
+## needs directional info.
+function check_grid_point(grid, x, y)
+    """Checks a point in grid. Does not
+    check if allready inside"""
+    if grid[x,y]==border
+        return border
+    end
+
+    if grid[x-1,y]==inside
+        return inside
+    end
+
+    # Count number of times we cross border
+    border_crossings = 0
+    # Scan left
+    for i in 1:x-2
+        cell = grid[x-i, y]
+        # If we hit the border, and the cell above or below is border, we know that we cross the border
+        if cell==border && (grid[x-i, y+1]==border || grid[x-i, y-1]==border) && grid[x-i-1, y]!=border
+            border_crossings+=1
+        end
+    end
+
+    return mod(border_crossings,2)==0 ? outside : inside
 end
-grid = generate_grid(
-    create_square_fractal(2)
-)
+
+function populate_grid!(grid::Array{Role,2})
+    """Takes a grid with an enclosed border,
+    and makes internal points inside::Role.
+    Assumes points not on border are ouside::Role"""
+
+    height, width = size(grid)
+    for x = 2:width-1, y = 2:height-1
+        grid[x, y] = check_grid_point(grid, x, y)
+    end
+end
+
+## Second method for deciding inside
+## Scans middle out
+function populate_grid_middle_out!(grid::Array{Role,2})
+    """Takes a grid with an enclosed border,
+    and makes internal points inside::Role."""
+    # Find center
+    height, width = size(grid)
+    mid_x = Integer(floor(height/2))
+    mid_y = Integer(floor(width/2))
+
+    recursive_check_point!(grid, mid_x, mid_y)
+end
+function recursive_check_point!(grid, x, y)
+    """Inside out check of grid"""
+    if grid[x,y]==border || grid[x,y]==inside
+        return
+    end
+    grid[x,y] = inside
+    # Traverse to each of the neighbouring points
+    recursive_check_point!(grid, x+1, y)  # Right
+    recursive_check_point!(grid, x-1, y)  # Left
+    recursive_check_point!(grid, x, y+1)  # Above
+    recursive_check_point!(grid, x, y-1)  # Below
+end
+
+fractal = create_square_fractal(3)
+grid = generate_grid(fractal)
+populate_grid_middle_out!(grid)
 
 println("Loading PyPlot")
 using PyPlot
@@ -140,6 +200,22 @@ println("PyPlot loaded!")
 # end
 # plt.plot(x_list, y_list)
 
+# x,y = get_component_lists(fractal)
+# plt.xticks(collect(-5:20))
+# plt.yticks(collect(-5:20))
+# plt.grid()
+# plt.plot(x,y)
+# plt.show()
 
-plt.plot(get_components_lists(grid)...)
+plot_grid = Array{Int,2}(undef, size(grid))
+for i in eachindex(plot_grid)
+    plot_grid[i] = Integer(grid[i])
+end
+
+plt.pcolormesh(plot_grid)
+plt.colorbar()
+
+#x,y = get_component_lists(fractal)
+#plt.plot(x,y)
+
 plt.show()

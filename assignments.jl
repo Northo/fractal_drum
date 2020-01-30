@@ -57,36 +57,89 @@ function create_fractal(points::Array{Point}, l::Int)
     return out_points
 end
 
-function generate_grid(L)
+function generate_grid(points::Array{Point,1})
+    # Find borders for fractal
+    # TODO: This could probably be improved by built-in functions
+    max_x = min_x = points[1].x
+    max_y = min_y = points[1].y
+    for point in points
+        if point.x > max_x
+            max_x = point.x
+        elseif point.x < min_x
+            min_x = point.x
+        end
+        if point.y > max_y
+            max_y = point.y
+        elseif point.y < min_y
+            min_y = point.y
+        end
+    end
+
+    # Initialize grid
+    L = max(max_x-min_x, max_y-min_y) + 1
     grid = Array{Role, 2}(undef, L, L)
     for i in eachindex(grid)
         grid[i] = outside::Role
     end
+
+    # Set border
+    for point in points
+        grid[point.x-min_x+1, point.y-min_y+1] = border::Role
+    end
+
+    return grid
 end
 
-recursion_level = 2
-L = 4^recursion_level
+function create_square_fractal(l::Int)::Array{Point,1}
+    recursion_level = l
+    L = 4^recursion_level
 
-x1 = Point(0,0)
-x2 = x1 + Point(L,0)
-x3 = x2 + Point(0,L)
-x4 = x3 + Point(-L,0)
-x5 = x4 + Point(0, -L)
+    x1 = Point(0,0)
+    x2 = x1 + Point(L,0)
+    x3 = x2 + Point(0,L)
+    x4 = x3 + Point(-L,0)
+    x5 = x4 + Point(0, -L)
 
-square = [x1,x2,x3,x4,x5]
-points = create_fractal(square, recursion_level)
+    square = [x1,x2,x3,x4,x5]
+    points = create_fractal(square, recursion_level)
+    return points
+end
+
+function get_component_lists(points)
+    len = length(points)
+    x_list = Array{Int}(undef, len)
+    y_list = Array{Int}(undef, len)
+
+    for i in eachindex(points)
+        x_list[i] = points[i].x
+        y_list[i] = points[i].y
+    end
+
+    return x_list, y_list
+end
+
+for l in 1:3
+    println(length(
+        create_square_fractal(l)
+    ))
+end
+grid = generate_grid(
+    create_square_fractal(2)
+)
 
 println("Loading PyPlot")
 using PyPlot
 println("PyPlot loaded!")
 
-L = length(points)
-x_list = Array{Int}(undef, L)
-y_list = Array{Int}(undef, L)
-for i in 1:L
-    x_list[i] = points[i].x
-    y_list[i] = points[i].y
-end
+# L = length(points)
+# x_list = Array{Int}(undef, L)
+# y_list = Array{Int}(undef, L)
+# for i in 1:L
+#     x_list[i] = points[i].x
+#     y_list[i] = points[i].y
+# end
+# plt.plot(x_list, y_list)
 
-plt.plot(x_list, y_list)
+
+plt.plot(get_components_lists(grid)...)
 plt.show()

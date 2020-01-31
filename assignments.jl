@@ -4,10 +4,10 @@
 struct Point
     x::Int
     y::Int
-    role::Role
+#    role::Role
 
-    Point(x,y) = new(x,y,outside::Role)
-    Point(x,y,role) = new(x,y,role)
+#    Point(x,y) = new(x,y,outside::Role)
+#    Point(x,y,role) = new(x,y,role)
 end
 
 function Base.:+(x::Point, y::Point)
@@ -16,6 +16,10 @@ end
 
 function Base.:-(x::Point, y::Point)
     return Point(x.x-y.x, x.y-y.y)
+end
+
+function Base.:*(p::Point, n::Int)
+    return Point(p.x*n, p.y*n)
 end
 
 function generate_square_wave(start::Point, stop::Point)
@@ -62,7 +66,7 @@ function generate_grid(points::Array{Point,1})
     # TODO: This could probably be improved by built-in functions
     max_x = min_x = points[1].x
     max_y = min_y = points[1].y
-    for point in points
+    for (i, point) in enumerate(points)
         if point.x > max_x
             max_x = point.x
         elseif point.x < min_x
@@ -103,6 +107,29 @@ function create_square_fractal(l::Int)::Array{Point,1}
     square = [x1,x2,x3,x4,x5]
     points = create_fractal(square, recursion_level)
     return points
+end
+
+function split_segments(points, split_into)
+    """Splits an array of points, that make up
+    line segments. Each segment is split into
+    split_into number of segments, ie. if split_into=2
+    two points, one segment, will be turned
+    into three points, two segments.
+
+    It is also assumed that the shortest
+    line segment has length one, so that,
+    in order to keep integer coordinates, all coordinates
+    has to be shiftet up, so that the new shortes segment
+    also has length one.
+    """
+    L = length(points)
+    new_points = Array{Point,1}(undef, (L-1)*split_into + 1)
+
+    for i in 1:L-1, j in 1:split_into
+        new_points[(i-1)*split_into + j] = points[i]*split_into + (points[i+1]-points[i])*(j-1)
+    end
+    new_points[end] = points[end]
+    return new_points
 end
 
 function get_component_lists(points)
@@ -183,39 +210,43 @@ function recursive_check_point!(grid, x, y)
     recursive_check_point!(grid, x, y-1)  # Below
 end
 
-fractal = create_square_fractal(3)
-grid = generate_grid(fractal)
-populate_grid_middle_out!(grid)
+function get_fractal(;level=2, grid_constant=1)
+    fractal = create_square_fractal(level)
+    fractal = split_segments(fractal, grid_constant)
+    return fractal
+end
+
+function get_populated_grid(;level=2, grid_constant=1)
+    """level: recursion depth
+       grid_constant: number of points per smallest length on fractal"""
+
+    grid = generate_grid(
+        get_fractal(level=level, grid_constant=grid_constant)
+    )
+    populate_grid_middle_out!(grid)
+    return grid
+end
+
+function plot_grid(grid)
+    plot_grid = Array{Int,2}(undef, size(grid))
+    for i in eachindex(plot_grid)
+        plot_grid[i] = Integer(grid[i])
+    end
+
+    plt.pcolormesh(plot_grid)
+    plt.colorbar()
+    plt.show()
+end
+
+function plot_curve(fractal)
+    x,y = get_component_lists(fractal)
+    plt.plot(x,y)
+    plt.show()
+end
 
 println("Loading PyPlot")
 using PyPlot
 println("PyPlot loaded!")
 
-# L = length(points)
-# x_list = Array{Int}(undef, L)
-# y_list = Array{Int}(undef, L)
-# for i in 1:L
-#     x_list[i] = points[i].x
-#     y_list[i] = points[i].y
-# end
-# plt.plot(x_list, y_list)
-
-# x,y = get_component_lists(fractal)
-# plt.xticks(collect(-5:20))
-# plt.yticks(collect(-5:20))
-# plt.grid()
-# plt.plot(x,y)
-# plt.show()
-
-plot_grid = Array{Int,2}(undef, size(grid))
-for i in eachindex(plot_grid)
-    plot_grid[i] = Integer(grid[i])
-end
-
-plt.pcolormesh(plot_grid)
-plt.colorbar()
-
-#x,y = get_component_lists(fractal)
-#plt.plot(x,y)
-
-plt.show()
+grid = get_populated_grid(grid_constant=2)
+plot_grid(grid)

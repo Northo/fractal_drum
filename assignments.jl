@@ -244,9 +244,27 @@ function plot_curve(fractal)
     plt.show()
 end
 
-println("Loading PyPlot")
-using PyPlot
-println("PyPlot loaded!")
+using Printf
+function plot_by_print(grid)
+    """ASCII plot of grid. Requires Printf."""
+    width, height = size(grid)
+    println(repeat("-", width*3+2))
+    for i in eachindex(grid)
+        if mod(i-1, width)==0
+            print("|")
+        end
 
-grid = get_populated_grid(grid_constant=2)
-plot_grid(grid)
+        @printf("%3c", [' ', '.', 'x'][1+Integer(grid[i])])
+        if mod(i, width)==0
+            println("|")
+        end
+    end
+    println(repeat("-", width*3+2))
+end
+#println("Loading PyPlot")
+#using PyPlot
+#println("PyPlot loaded!")
+
+grid = get_populated_grid(level=2, grid_constant=1)
+plot_by_print(grid)
+#plot_grid(grid)

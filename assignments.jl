@@ -1,3 +1,24 @@
+using LinearAlgebra
+PLOT = true
+VERBOSE = true
+if PLOT
+    println("Loading PyPlot")
+    using PyPlot
+    println("PyPlot loaded!")
+end
+
+# Constants and setup
+LEVEL = 2
+GRID_CONSTANT = 4
+FIG_DIR = "modes/"
+MODES_TO_PLOT = [1, 2, 3, 10, 11, 15, 16]
+
+macro verbose(msg...)
+    if VERBOSE
+        println(msg...)
+    end
+end
+
 # Role, describes the role of a point in a grid
 @enum Role inside outside border
 
@@ -216,21 +237,22 @@ function get_fractal(;level=2, grid_constant=1)
     return fractal
 end
 
-function get_populated_grid(;level=2, grid_constant=1)
+function get_populated_grid(;level=2, grid_constant=1, return_fractal=false)
     """level: recursion depth
        grid_constant: number of points per smallest length on fractal"""
-
-    grid = generate_grid(
-        get_fractal(level=level, grid_constant=grid_constant)
-    )
+    fractal = get_fractal(level=level, grid_constant=grid_constant)
+    grid = generate_grid(fractal)
     populate_grid_middle_out!(grid)
+    if return_fractal
+        return grid, fractal
+    end
     return grid
 end
 
-function plot_grid(grid)
-    plot_grid = Array{Int,2}(undef, size(grid))
+function plot_grid(grid::Array{T}) where {T<:Real}
+    plot_grid = Array{T,2}(undef, size(grid))
     for i in eachindex(plot_grid)
-        plot_grid[i] = Integer(grid[i])
+        plot_grid[i] = T(grid[i])
     end
 
     plt.pcolormesh(plot_grid)
@@ -254,17 +276,108 @@ function plot_by_print(grid)
             print("|")
         end
 
-        @printf("%3c", [' ', '.', 'x'][1+Integer(grid[i])])
+        @printf("%3c", ['.', ' ', '#'][1+Integer(grid[i])])
         if mod(i, width)==0
             println("|")
         end
     end
     println(repeat("-", width*3+2))
 end
-#println("Loading PyPlot")
-#using PyPlot
-#println("PyPlot loaded!")
 
-grid = get_populated_grid(level=2, grid_constant=1)
-plot_by_print(grid)
-#plot_grid(grid)
+function create_eigenmatrix(grid)
+    # An alternative would be to
+    # use information about how eachindex
+    # works to avoid needing the Point array
+
+    # Notice that the values have opposite
+    # sign of what you get from 5-point stencil
+    # this is because we want - (nabla)^2
+
+    inner_list = []
+    for i in CartesianIndices(grid)
+        if grid[i]==inside::Role
+            append!(inner_list, [Tuple(i)])
+        end
+    end
+
+    num_inner = length(inner_list)
+    mat = zeros(Int, num_inner, num_inner)
+    for i in eachindex(inner_list)
+        mat[i,i] = 4
+        x,y = inner_list[i]
+        for cell in [(x+1,y), (x-1,y), (x,y+1), (x,y-1)]
+            if cell in inner_list
+                inner_index = findfirst(x->x==cell, inner_list)
+                mat[i, inner_index] = -1
+            end
+        end
+    end
+    return inner_list, mat
+end
+
+function solve_eigenproblem(matrix)
+    values, vectors = eigen(matrix)
+    sort_index = sortperm(values)
+    return values[sort_index], vectors[:, sort_index]
+end
+
+function plottable_grid(size, inner_list, vector)
+    """
+    Parameter:
+     size: size of grid to create
+     inner_list: list of inner points, in same order as vector
+     vector: the value for each point in inner_list"""
+    num_grid = zeros(size)
+    for i in eachindex(inner_list)
+        num_grid[inner_list[i]...] = vector[i]
+    end
+    return num_grid
+end
+
+
+############################################## Main #########################
+# Nothing is supposed to be run before this line
+# Above this line are all necessary definitions, below are their execution
+
+## Create fractal and grid ##
+@verbose("Create fractal and grid")
+grid, fractal = get_populated_grid(
+    level=LEVEL,
+    grid_constant=GRID_CONSTANT,
+    return_fractal=true)
+# Find inner points and create the eigenmatrix
+@verbose("Generate eigenmatrix")
+inner_list, mat = create_eigenmatrix(grid)
+@verbose(mat)
+values, vectors = solve_eigenproblem(mat)
+@verbose(values, vectors)
+
+############## Plotting ####################
+@assert PLOT "Plotting not true"
+@verbose("Begin plotting")
+x,y = get_component_lists(fractal)
+x .-= minimum(x)  # Move to fit with grid
+y .-= minimum(y)
+
+x = Array{Int}(undef, length(inner_list))
+y = Array{Int}(undef, length(inner_list))
+
+for i in eachindex(inner_list)
+    x[i], y[i] = inner_list[i]
+end
+
+for mode in MODES_TO_PLOT
+    plot_grid = plottable_grid(size(grid), inner_list, vectors[:, mode])
+
+    # Colormesh
+    plt.figure(figsize=(10,10), dpi=200)
+    plt.pcolormesh(plot_grid)
+    plt.savefig(@sprintf("%smode_%s.png", FIG_DIR, string(mode)))
+    plt.clf()  # Clear figure
+
+    # Surface
+    #surf(plot_grid, cmap="coolwarm")
+    scatter3D(x,y,vectors[:, mode], cmap="coolwarm")
+    plt.savefig(@sprintf("%s/surface/mode_%s.png", FIG_DIR, string(mode)))
+end
+@verbose("Done!")

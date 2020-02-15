@@ -1,4 +1,7 @@
 using LinearAlgebra
+using Arpack
+using SparseArrays
+
 PLOT = true
 VERBOSE = true
 if PLOT
@@ -9,9 +12,9 @@ end
 
 # Constants and setup
 LEVEL = 2
-GRID_CONSTANT = 4
+GRID_CONSTANT = 2
 FIG_DIR = "modes/"
-MODES_TO_PLOT = [1, 2, 3, 10, 11, 15, 16]
+NUM_MODES = 10
 
 macro verbose(msg...)
     if VERBOSE
@@ -301,7 +304,7 @@ function create_eigenmatrix(grid)
     end
 
     num_inner = length(inner_list)
-    mat = zeros(Int, num_inner, num_inner)
+    mat = spzeros(Int, num_inner, num_inner)
     for i in eachindex(inner_list)
         mat[i,i] = 4
         x,y = inner_list[i]
@@ -315,10 +318,15 @@ function create_eigenmatrix(grid)
     return inner_list, mat
 end
 
+# function solve_eigenproblem(matrix)
+#     values, vectors = eigen(matrix)
+#     sort_index = sortperm(values)
+#     return values[sort_index], vectors[:, sort_index]
+# end
+
 function solve_eigenproblem(matrix)
-    values, vectors = eigen(matrix)
-    sort_index = sortperm(values)
-    return values[sort_index], vectors[:, sort_index]
+    values, vectors = eigs(matrix, nev=NUM_MODES, which=:SM)
+    return values, vectors
 end
 
 function plottable_grid(size, inner_list, vector)
@@ -366,7 +374,7 @@ for i in eachindex(inner_list)
     x[i], y[i] = inner_list[i]
 end
 
-for mode in MODES_TO_PLOT
+for mode in 1:NUM_MODES
     plot_grid = plottable_grid(size(grid), inner_list, vectors[:, mode])
 
     # Colormesh
@@ -376,8 +384,13 @@ for mode in MODES_TO_PLOT
     plt.clf()  # Clear figure
 
     # Surface
-    #surf(plot_grid, cmap="coolwarm")
-    scatter3D(x,y,vectors[:, mode], cmap="coolwarm")
+    # cmap = plt.cm.coolwarm
+    # my_map = x-> ifelse(x==0, (0,0,0,0), cmap(x))
+    vmax = maximum(plot_grid)
+    vmin = minimum(plot_grid)
+    map!(x->x==0 ? 1000 : x, plot_grid)
+    surf(plot_grid, cmap="coolwarm", vmin=vmin, vmax=vmax)
+    # #scatter3D(x,y,vectors[:, mode], cmap="coolwarm")
     plt.savefig(@sprintf("%s/surface/mode_%s.png", FIG_DIR, string(mode)))
 end
 @verbose("Done!")

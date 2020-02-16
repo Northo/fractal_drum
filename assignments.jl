@@ -12,18 +12,19 @@ end
 
 # Constants and setup
 LEVEL = 2
-GRID_CONSTANT = 2
+GRID_CONSTANT = 3
 FIG_DIR = "modes/"
 NUM_MODES = 10
+
+# Used in grid
+BORDER = 0
+OUTSIDE = -1
 
 macro verbose(msg...)
     if VERBOSE
         println(msg...)
     end
 end
-
-# Role, describes the role of a point in a grid
-@enum Role inside outside border
 
 struct Point
     x::Int
@@ -105,14 +106,14 @@ function generate_grid(points::Array{Point,1})
 
     # Initialize grid
     L = max(max_x-min_x, max_y-min_y) + 1
-    grid = Array{Role, 2}(undef, L, L)
+    grid = Array{Int, 2}(undef, L, L)
     for i in eachindex(grid)
-        grid[i] = outside::Role
+        grid[i] = OUTSIDE
     end
 
     # Set border
     for point in points
-        grid[point.x-min_x+1, point.y-min_y+1] = border::Role
+        grid[point.x-min_x+1, point.y-min_y+1] = BORDER
     end
 
     return grid
@@ -173,45 +174,45 @@ end
 ## First method of checking,
 ## scanning out for each cell. Does not work,
 ## needs directional info.
-function check_grid_point(grid, x, y)
-    """Checks a point in grid. Does not
-    check if allready inside"""
-    if grid[x,y]==border
-        return border
-    end
+# function check_grid_point(grid, x, y)
+#     """Checks a point in grid. Does not
+#     check if allready inside"""
+#     if grid[x,y]==border
+#         return border
+#     end
 
-    if grid[x-1,y]==inside
-        return inside
-    end
+#     if grid[x-1,y]==inside
+#         return inside
+#     end
 
-    # Count number of times we cross border
-    border_crossings = 0
-    # Scan left
-    for i in 1:x-2
-        cell = grid[x-i, y]
-        # If we hit the border, and the cell above or below is border, we know that we cross the border
-        if cell==border && (grid[x-i, y+1]==border || grid[x-i, y-1]==border) && grid[x-i-1, y]!=border
-            border_crossings+=1
-        end
-    end
+#     # Count number of times we cross border
+#     border_crossings = 0
+#     # Scan left
+#     for i in 1:x-2
+#         cell = grid[x-i, y]
+#         # If we hit the border, and the cell above or below is border, we know that we cross the border
+#         if cell==border && (grid[x-i, y+1]==border || grid[x-i, y-1]==border) && grid[x-i-1, y]!=border
+#             border_crossings+=1
+#         end
+#     end
 
-    return mod(border_crossings,2)==0 ? outside : inside
-end
+#     return mod(border_crossings,2)==0 ? outside : inside
+# end
 
-function populate_grid!(grid::Array{Role,2})
-    """Takes a grid with an enclosed border,
-    and makes internal points inside::Role.
-    Assumes points not on border are ouside::Role"""
+# function populate_grid!(grid::Array{Role,2})
+#     """Takes a grid with an enclosed border,
+#     and makes internal points inside::Role.
+#     Assumes points not on border are ouside::Role"""
 
-    height, width = size(grid)
-    for x = 2:width-1, y = 2:height-1
-        grid[x, y] = check_grid_point(grid, x, y)
-    end
-end
+#     height, width = size(grid)
+#     for x = 2:width-1, y = 2:height-1
+#         grid[x, y] = check_grid_point(grid, x, y)
+#     end
+# end
 
 ## Second method for deciding inside
 ## Scans middle out
-function populate_grid_middle_out!(grid::Array{Role,2})
+function populate_grid_middle_out!(grid::Array{Int,2})
     """Takes a grid with an enclosed border,
     and makes internal points inside::Role."""
     # Find center
@@ -219,19 +220,22 @@ function populate_grid_middle_out!(grid::Array{Role,2})
     mid_x = Integer(floor(height/2))
     mid_y = Integer(floor(width/2))
 
-    recursive_check_point!(grid, mid_x, mid_y)
+    number_inside = recursive_check_point!(grid, mid_x, mid_y, 1)
+    return number_inside - 1  # Number of inner points
 end
-function recursive_check_point!(grid, x, y)
+function recursive_check_point!(grid, x, y, i)
     """Inside out check of grid"""
-    if grid[x,y]==border || grid[x,y]==inside
-        return
+    if grid[x,y]==BORDER || grid[x,y]>0   # All positive points are inside
+        return i
     end
-    grid[x,y] = inside
+    grid[x,y] = i
+    i+= 1
+
     # Traverse to each of the neighbouring points
-    recursive_check_point!(grid, x+1, y)  # Right
-    recursive_check_point!(grid, x-1, y)  # Left
-    recursive_check_point!(grid, x, y+1)  # Above
-    recursive_check_point!(grid, x, y-1)  # Below
+    i = recursive_check_point!(grid, x+1, y, i)  # Right
+    i = recursive_check_point!(grid, x-1, y, i)  # Left
+    i = recursive_check_point!(grid, x, y+1, i)  # Above
+    i = recursive_check_point!(grid, x, y-1, i)  # Below
 end
 
 function get_fractal(;level=2, grid_constant=1)
@@ -245,11 +249,11 @@ function get_populated_grid(;level=2, grid_constant=1, return_fractal=false)
        grid_constant: number of points per smallest length on fractal"""
     fractal = get_fractal(level=level, grid_constant=grid_constant)
     grid = generate_grid(fractal)
-    populate_grid_middle_out!(grid)
+    number_inside = populate_grid_middle_out!(grid)
     if return_fractal
-        return grid, fractal
+        return grid, number_inside, fractal
     end
-    return grid
+    return grid, number_inside
 end
 
 function plot_grid(grid::Array{T}) where {T<:Real}
@@ -287,7 +291,7 @@ function plot_by_print(grid)
     println(repeat("-", width*3+2))
 end
 
-function create_eigenmatrix(grid)
+function create_eigenmatrix(grid, number_inside)
     # An alternative would be to
     # use information about how eachindex
     # works to avoid needing the Point array
@@ -296,21 +300,20 @@ function create_eigenmatrix(grid)
     # sign of what you get from 5-point stencil
     # this is because we want - (nabla)^2
 
-    inner_list = []
+    inner_list = Array{CartesianIndex}(undef, number_inside)
     for i in CartesianIndices(grid)
-        if grid[i]==inside::Role
-            append!(inner_list, [Tuple(i)])
+        if grid[i]>0
+            inner_list[grid[i]] = i
         end
     end
 
-    num_inner = length(inner_list)
-    mat = spzeros(Int, num_inner, num_inner)
+    mat = spzeros(Int, number_inside, number_inside)
     for i in eachindex(inner_list)
         mat[i,i] = 4
-        x,y = inner_list[i]
+        x,y = Tuple(inner_list[i])
         for cell in [(x+1,y), (x-1,y), (x,y+1), (x,y-1)]
-            if cell in inner_list
-                inner_index = findfirst(x->x==cell, inner_list)
+            if grid[cell...]>0
+                inner_index = grid[cell...]
                 mat[i, inner_index] = -1
             end
         end
@@ -337,7 +340,7 @@ function plottable_grid(size, inner_list, vector)
      vector: the value for each point in inner_list"""
     num_grid = zeros(size)
     for i in eachindex(inner_list)
-        num_grid[inner_list[i]...] = vector[i]
+        num_grid[Tuple(inner_list[i])...] = vector[i]
     end
     return num_grid
 end
@@ -349,13 +352,13 @@ end
 
 ## Create fractal and grid ##
 @verbose("Create fractal and grid")
-grid, fractal = get_populated_grid(
+grid, number_inside, fractal = get_populated_grid(
     level=LEVEL,
     grid_constant=GRID_CONSTANT,
     return_fractal=true)
 # Find inner points and create the eigenmatrix
 @verbose("Generate eigenmatrix")
-inner_list, mat = create_eigenmatrix(grid)
+inner_list, mat = create_eigenmatrix(grid, number_inside)
 @verbose(mat)
 values, vectors = solve_eigenproblem(mat)
 @verbose(values, vectors)
@@ -371,11 +374,11 @@ x = Array{Int}(undef, length(inner_list))
 y = Array{Int}(undef, length(inner_list))
 
 for i in eachindex(inner_list)
-    x[i], y[i] = inner_list[i]
+    x[i], y[i] = Tuple(inner_list[i])
 end
 
 for mode in 1:NUM_MODES
-    plot_grid = plottable_grid(size(grid), inner_list, vectors[:, mode])
+    plot_grid = plottable_grid(size(grid), inner_list, real.(vectors[:, mode]))
 
     # Colormesh
     plt.figure(figsize=(10,10), dpi=200)
@@ -384,12 +387,17 @@ for mode in 1:NUM_MODES
     plt.clf()  # Clear figure
 
     # Surface
-    # cmap = plt.cm.coolwarm
-    # my_map = x-> ifelse(x==0, (0,0,0,0), cmap(x))
+    cmap = plt.cm.coolwarm
+    my_map = x-> ifelse(x==255, (0,0,0,0), cmap(x))
+
     vmax = maximum(plot_grid)
     vmin = minimum(plot_grid)
-    map!(x->x==0 ? 1000 : x, plot_grid)
-    surf(plot_grid, cmap="coolwarm", vmin=vmin, vmax=vmax)
+    for i in eachindex(plot_grid)
+        if plot_grid[i]==0
+#            plot_grid[i] = 1000
+        end
+    end
+    surf(plot_grid, cmap="coolwarm") #, vmin=vmin, vmax=vmax)
     # #scatter3D(x,y,vectors[:, mode], cmap="coolwarm")
     plt.savefig(@sprintf("%s/surface/mode_%s.png", FIG_DIR, string(mode)))
 end

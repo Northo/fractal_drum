@@ -220,22 +220,24 @@ function populate_grid_middle_out!(grid::Array{Int,2})
     mid_x = Integer(floor(height/2))
     mid_y = Integer(floor(width/2))
 
-    number_inside = recursive_check_point!(grid, mid_x, mid_y, 1)
-    return number_inside - 1  # Number of inner points
-end
-function recursive_check_point!(grid, x, y, i)
-    """Inside out check of grid"""
-    if grid[x,y]==BORDER || grid[x,y]>0   # All positive points are inside
-        return i
+    points_to_check = [(mid_x+1, mid_y),
+                       (mid_x-1, mid_y),
+                       (mid_x, mid_y+1),
+                       (mid_x, mid_y-1)]
+    i = 1
+    for (x, y) in points_to_check
+        if grid[x,y]==BORDER || grid[x,y]>0
+            continue
+        end
+        grid[x,y] = i
+        push!(points_to_check, (x+1,y))
+        push!(points_to_check, (x-1,y))
+        push!(points_to_check, (x,y+1))
+        push!(points_to_check, (x,y-1))
+        i += 1
     end
-    grid[x,y] = i
-    i+= 1
 
-    # Traverse to each of the neighbouring points
-    i = recursive_check_point!(grid, x+1, y, i)  # Right
-    i = recursive_check_point!(grid, x-1, y, i)  # Left
-    i = recursive_check_point!(grid, x, y+1, i)  # Above
-    i = recursive_check_point!(grid, x, y-1, i)  # Below
+    return i - 1  # Number of inner points
 end
 
 function get_fractal(;level=2, grid_constant=1)

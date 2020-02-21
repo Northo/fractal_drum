@@ -350,6 +350,61 @@ function create_eigenmatrix(grid, number_inside)
     return inner_list, mat
 end
 
+function create_eigenmatrix_high_order(grid, number_inside)
+    # An alternative would be to
+    # use information about how eachindex
+    # works to avoid needing the Point array
+
+    # Notice that the values have opposite
+    # sign of what you get from 5-point stencil
+    # this is because we want - (nabla)^2
+
+    inner_list = Array{CartesianIndex}(undef, number_inside)
+    width, height = size(grid)
+    for i in CartesianIndices(grid)
+        if grid[i]>0
+            inner_list[grid[i]] = i
+        end
+    end
+
+    I = Array{Float64}(undef, number_inside*9)
+    J = Array{Float64}(undef, number_inside*9)
+    V = Array{Float64}(undef, number_inside*9)
+
+    index = 1
+    for i in eachindex(inner_list)
+        I[index] = i
+        J[index] = i
+        V[index] = 5
+        index += 1
+        x, y = Tuple(inner_list[i])
+        for cell in [(x+1,y), (x-1,y), (x,y+1), (x,y-1)]
+            if grid[cell...]>0
+                inner_index = grid[cell...]
+                I[index] = i
+                J[index] = inner_index
+                V[index] = -4/3
+                index += 1
+            end
+        end
+        for cell in [(x+2,y), (x-2,y), (x,y+2), (x,y-2)]
+            if cell[1]==0 || cell[2]==0 || cell[1]==width+1 || cell[2]==height+1
+                continue
+            end
+            if grid[cell...]>0
+                inner_index = grid[cell...]
+                I[index] = i
+                J[index] = inner_index
+                V[index] = 1/12
+                index += 1
+            end
+        end
+    end
+    index = index-1
+    mat = sparse(I[1:index], J[1:index], V[1:index])
+    return inner_list, mat
+end
+
 # function solve_eigenproblem(matrix)
 #     values, vectors = eigen(matrix)
 #     sort_index = sortperm(values)

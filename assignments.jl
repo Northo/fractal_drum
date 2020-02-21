@@ -257,12 +257,16 @@ function get_fractal(;level=2, grid_constant=1)
     return fractal
 end
 
-function get_populated_grid(;level=2, grid_constant=1, return_fractal=false)
+function get_populated_grid(;level=2,
+                            grid_constant=1,
+                            return_fractal=false,
+                            population_function=populate_grid_middle_out!
+                            )
     """level: recursion depth
        grid_constant: number of points per smallest length on fractal"""
     fractal = get_fractal(level=level, grid_constant=grid_constant)
     grid = generate_grid(fractal)
-    number_inside = populate_grid_middle_out!(grid)
+    number_inside = population_function(grid)
     if return_fractal
         return grid, number_inside, fractal
     end
@@ -407,8 +411,9 @@ for mode in 1:NUM_MODES
 
     # Colormesh
     plt.figure(figsize=(10,10), dpi=200)
+    plt.title(@sprintf("Level l=%i, mode number %i\n \$\\omega/v\$ = %.3f", LEVEL, mode, sqrt(values[mode])))
     plt.pcolormesh(plot_grid)
-    plt.savefig(@sprintf("%smode_%s.png", FIG_DIR, string(mode)))
+    plt.savefig(@sprintf("%smode_%i.png", FIG_DIR, mode))
     plt.clf()  # Clear figure
 
     # Surface

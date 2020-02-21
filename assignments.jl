@@ -172,43 +172,54 @@ end
 
 # Finding inside and outside of structure ###################
 ## First method of checking,
-## scanning out for each cell. Does not work,
-## needs directional info.
-# function check_grid_point(grid, x, y)
-#     """Checks a point in grid. Does not
-#     check if allready inside"""
-#     if grid[x,y]==border
-#         return border
-#     end
+## scanning out for each cell.
+## Assumes a grid constant of at least 2
+function check_grid_point(grid, x, y)
+    """Checks a point in grid. Does not
+    check if allready inside"""
+    if grid[x,y]==BORDER
+        return BORDER
+    end
 
-#     if grid[x-1,y]==inside
-#         return inside
-#     end
+    if grid[x-1,y]>0
+        return 1
+    end
 
-#     # Count number of times we cross border
-#     border_crossings = 0
-#     # Scan left
-#     for i in 1:x-2
-#         cell = grid[x-i, y]
-#         # If we hit the border, and the cell above or below is border, we know that we cross the border
-#         if cell==border && (grid[x-i, y+1]==border || grid[x-i, y-1]==border) && grid[x-i-1, y]!=border
-#             border_crossings+=1
-#         end
-#     end
+    # Count number of times we cross border
+    border_crossings = 0
+    # Scan left
+    for i in 1:x-1
+        if grid[x-i, y]==BORDER && grid[x-i, y-1]==BORDER
+            border_crossings+=1
+        end
+    end
+    return mod(border_crossings,2)==0 ? OUTSIDE : 1
+end
 
-#     return mod(border_crossings,2)==0 ? outside : inside
-# end
+function populate_grid!(grid::Array{Int,2})
+    """Takes a grid with an enclosed border"""
 
-# function populate_grid!(grid::Array{Role,2})
-#     """Takes a grid with an enclosed border,
-#     and makes internal points inside::Role.
-#     Assumes points not on border are ouside::Role"""
+    height, width = size(grid)
+    number_inside = 0
 
-#     height, width = size(grid)
-#     for x = 2:width-1, y = 2:height-1
-#         grid[x, y] = check_grid_point(grid, x, y)
-#     end
-# end
+    # We know that the border of the grid cannot
+    # contain inner points. Therefore we do not check them.
+    # Take care of edge case
+    # for y in 2:height-1
+    #     if grid[2,y]!=BORDER && grid[1,y]==BORDER
+    #         number_inside += 1
+    #         grid[2,y] = number_inside
+    #     end
+    # end
+    for x = 2:width-1, y = 2:height-1
+        status = check_grid_point(grid, x, y)
+        if status == 1
+            number_inside += 1
+            grid[x,y] = number_inside
+        end
+    end
+    return number_inside
+end
 
 ## Second method for deciding inside
 ## Scans middle out

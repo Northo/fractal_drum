@@ -309,17 +309,29 @@ function create_eigenmatrix(grid, number_inside)
         end
     end
 
-    mat = spzeros(Int, number_inside, number_inside)
+    I = Array{Int}(undef, number_inside*5)
+    J = Array{Int}(undef, number_inside*5)
+    V = Array{Int}(undef, number_inside*5)
+
+    index = 1
     for i in eachindex(inner_list)
-        mat[i,i] = 4
-        x,y = Tuple(inner_list[i])
+        I[index] = i
+        J[index] = i
+        V[index] = 4
+        index += 1
+        x, y = Tuple(inner_list[i])
         for cell in [(x+1,y), (x-1,y), (x,y+1), (x,y-1)]
             if grid[cell...]>0
                 inner_index = grid[cell...]
-                mat[i, inner_index] = -1
+                I[index] = i
+                J[index] = inner_index
+                V[index] = -1
+                index += 1
             end
         end
     end
+    index = index-1
+    mat = sparse(I[1:index], J[1:index], V[1:index])
     return inner_list, mat
 end
 

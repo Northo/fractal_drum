@@ -5,6 +5,8 @@ LEVEL = 4
 GRID_CONSTANT = 2
 NUM_MODES = 10
 
+SAVE_DATA = true
+
 ##################
 ## Calculations ##
 ##################
@@ -32,6 +34,17 @@ println("omega/v\t deltaN")
 for (i, value) in enumerate(values)
     interesting = i-(1/(4*pi))*value
     @printf "%f\t%6.8f\n" sqrt(value) interesting
+end
+
+######################
+## Printing to file ##
+######################
+if SAVE_DATA
+    using DelimitedFiles
+    DATA_DIR = "datafiles/"
+    filename = @sprintf("eigenvalues_level_%i_grid_constant_%i.dat", LEVEL, GRID_CONSTANT)
+    full_filename = string(DATA_DIR, filename)
+    writedlm(full_filename, values)
 end
 
 ##############

@@ -1,7 +1,15 @@
+"""
+This file contains only definitions, it does not run anything.
+Import it somewhere else, and call the functions from there.
+"""
+
 using LinearAlgebra
 using Arpack
 using SparseArrays
 
+###########
+## Setup ##
+###########
 VERBOSE = true
 if PLOT
     println("Loading PyPlot")
@@ -9,11 +17,7 @@ if PLOT
     println("PyPlot loaded!")
 end
 
-# Constants and setup
-LEVEL = 4
-GRID_CONSTANT = 3
 FIG_DIR = "modes/"
-NUM_MODES = 10
 
 # Used in grid
 BORDER = 0
@@ -25,13 +29,13 @@ macro verbose(msg...)
     end
 end
 
+##########################
+## Function definitions ##
+##########################
+
 struct Point
     x::Int
     y::Int
-#    role::Role
-
-#    Point(x,y) = new(x,y,outside::Role)
-#    Point(x,y,role) = new(x,y,role)
 end
 
 function Base.:+(x::Point, y::Point)

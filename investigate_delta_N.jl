@@ -1,5 +1,8 @@
-PLOT = false
+using CurveFit
+PLOT = true
+
 include("utils.jl")
+
 # Used in grid
 BORDER = 0
 OUTSIDE = -1
@@ -7,6 +10,8 @@ OUTSIDE = -1
 ## Test
 # Constants and setup
 GRID_CONSTANT = 2
+
+NUM_MODES = 40
 
 for level in [2,3,4]
     println("Level ", level)
@@ -30,9 +35,27 @@ for level in [2,3,4]
     end
     println("----")
     println("omega/v\t deltaN")
+    delta_N = Array{Float64}(undef, NUM_MODES)
+    println("Number inside: ", number_inside)
     for (i, value) in enumerate(values)
-        interesting = i-(1/(4*pi))*value
-        @printf "%f\t%6.8f\n" sqrt(value) interesting
+        delta_N[i] = number_inside*value/(4*pi) - i + 1
+        @printf "%f\t%6.8f\n" sqrt(value) delta_N[i]
     end
     println("-----------")
+
+    ################
+    ## Regression ##
+    ################
+    fit = curve_fit(PowerFit, sqrt.(values), delta_N)
+    d = fit.coefs[2]  # Slope
+    @printf "Estimate for d: %.3f\n" d
+
+    ##########
+    ## Plot ##
+    ##########
+    plt.title(@sprintf("Calculated at level %i with grid constant %i", level, GRID_CONSTANT))
+    plt.scatter(sqrt.(values), delta_N, label="\$\\Delta N(\\omega)\$")
+    plt.plot(sqrt.(values), fit.(sqrt.(values)), label=(@sprintf "Curve fit, d = %.3f" d))
+    plt.legend()
+    plt.show()
 end

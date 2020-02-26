@@ -414,9 +414,17 @@ end
 #     return values[sort_index], vectors[:, sort_index]
 # end
 
-function solve_eigenproblem(matrix)
-    values, vectors = eigs(matrix, nev=NUM_MODES, which=:SM)
-    return values, vectors
+function solve_eigenproblem(matrix; h=1, find_vectors=true)
+    """Solves the eigenproblem.
+    h defines the separation between grid points, ie. the factor that
+    we ignored when making the eigenmatrix. Optional, default=1"""
+    values, vectors = eigs(matrix, nev=NUM_MODES, which=:SM, ritzvec=find_vectors)
+    values ./= h^2
+    if find_vectors
+        return values, vectors
+    else
+        return values
+    end
 end
 
 function plottable_grid(size, inner_list, vector)

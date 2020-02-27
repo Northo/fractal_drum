@@ -408,11 +408,6 @@ function create_eigenmatrix_high_order(grid, number_inside)
     return inner_list, mat
 end
 
-# function solve_eigenproblem(matrix)
-#     values, vectors = eigen(matrix)
-#     sort_index = sortperm(values)
-#     return values[sort_index], vectors[:, sort_index]
-# end
 
 function solve_eigenproblem(matrix; h=1, find_vectors=true)
     """Solves the eigenproblem.

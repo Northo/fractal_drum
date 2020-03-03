@@ -12,7 +12,14 @@
 \begin{document}
 \maketitle
 
-\section{Generating the fractal}
+\begin{abstract}
+
+\end{abstract}
+
+\section{Modeling}
+
+\section{Numerical}
+\subsection{Generating the fractal}
 The generation of the fractal structure is implementet quite naievly.
 For example, the array of points is not pre-allocated, but appended during each loop-cycle.
 The number of points for a given level is easy to calculate, so this would be a simple thing to fix, but as it is not time consuming at all, I have kept the naive method.\\
@@ -32,13 +39,13 @@ See \ref{sec:lattice}.
   \caption{Fractal for $l=2$ and $l=4$.}
 \end{figure}
 
-\section{The lattice\label{sec:lattice}}
+\subsection{The lattice\label{sec:lattice}}
 The lattice is a 2D array of integers.
 Each array element has a value that corresponds to either inside, outside, or on the border of the fractal.
 The lattice constant $\delta$ is implemented in such a way that the shortest segment on the fractal, correspond to $\delta$ steps on the lattice.
 Ie. if $\delta=1$, there are no points on the lattice between the start and end point of the line segment on the fractal.
 
-\section{Inside or outside?}
+\subsection{Inside or outside?}
 There are two methods implemented in the program for determining if a point is inside or outside the fractal.
 The only assumption about the structure that the methods makes, is that every line segment is either vertical or horizonal, and not diagonal.
 
@@ -78,7 +85,7 @@ On a level 4 fractal with grid constant 2, the two methods performed as follows:
 \caption{Performance of methods for determining if points are inside or outside.}
 \end{table}
 
-\section{Calculation eigenmodes}
+\subsection{Calculation eigenmodes}
 We want to solve
 \begin{subequations}
   \label{eq:helm}
@@ -109,6 +116,7 @@ By also creating an array of inner points, ie. an array of tuples containing the
 The second aspect worth mentioning is how we store the eigenmatrix.
 This matrix is mainly zeros, therefore we store it in compressed sparse column format, which is the standard sparse format in Julia.
 
+\section{Results and discussion}
 \newcounter{mode}
 \forloop{mode}{1}{\value{mode}<10}{
   \begin{figure}[p]

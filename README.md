@@ -1,10 +1,18 @@
 # Calculating eigenmodes of a fractal drum
 
-
+![wireframe](./media/wireframe_stylish.png)
 
 `assignments.jl` is main file, does alot.
 `utils.jl` contains all function definitions.
 This is included in many of the other files where we want to calculate things. 
+
+`plot_fractal.jl` - plot the fractal
+`test_memory.jl` - investigate memory usage when solving the system
+`inestigate_delta_N.jl` - calculates fractal dimension
+`eigenvalues.jl` - solves eigenvalues
+`eigenmodes.jl` - solves eigenmodes
+`plot_eigenmode.py` - plots eigenmodes
+
 
 
 |2D | 3D |

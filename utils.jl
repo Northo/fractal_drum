@@ -422,6 +422,38 @@ function solve_eigenproblem(matrix; h=1, find_vectors=true)
     end
 end
 
+
+function solve_eigenproblem(;level, grid_constant, number_of_modes, stencil=:five, find_vectors=true, verbose=true, return_inner_list=false)
+    """Does everything recquired to solve the eigenproblem"""
+    if stencil==:five
+        eigenmatrix_method = create_eigenmatrix
+    elseif stencil==:nine
+        eigenmatrix_method = create_eigenmatrix_high_order
+    else
+        throw(ArgumentError("stencil must be :nine or :five, got $(repr(stencil))"))
+    end
+
+    println(" .Creating fractal and grid")
+    grid, number_inside, fractal = get_populated_grid(level=level, grid_constant=grid_constant, return_fractal=true)
+
+    println(" .Creating eigenmatrix")
+    inner_list, eigenmatrix = eigenmatrix_method(grid, number_inside)
+
+    println(" .Solving eigenproblem")
+    values, vectors = eigs(eigenmatrix, ritzvec=find_vectors, which=:SM, nev=number_of_modes)
+
+    # We must scale the eigenvalues, because we used h^2 nabla^2, not nabla^2
+    # ie. we should do values -> values / h^2
+    inverse_h = (grid_constant * level^4)
+    values .*= inverse_h^2
+
+    if return_inner_list
+        return values, vectors, fractal, inner_list
+    end
+    return values, vectors
+end
+
+
 function plottable_grid(size, inner_list, vector)
     """
     Parameter:
@@ -433,4 +465,14 @@ function plottable_grid(size, inner_list, vector)
         num_grid[Tuple(inner_list[i])...] = vector[i]
     end
     return num_grid
+end
+
+
+function format_info(info::AbstractDict)
+    width = maximum(length.(keys(info))) + 5
+    output = ""
+    for (key, value) in info
+        output = string(output, rpad(key, width), value, "\n")
+    end
+    return output
 end

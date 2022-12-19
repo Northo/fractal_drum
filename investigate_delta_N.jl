@@ -2,6 +2,8 @@ using CurveFit
 using DelimitedFiles
 PLOT = true
 SAVEDATA = true
+FIT = true
+HIGH_ORDER = true  # Use nine point stencil
 
 include("utils.jl")
 
@@ -11,9 +13,9 @@ OUTSIDE = -1
 
 ## Test
 # Constants and setup
-GRID_CONSTANT = 2
+GRID_CONSTANT = 3
 
-NUM_MODES = 1000
+NUM_MODES = 999
 
 DATADIR = "datafiles/delta_N/"
 
@@ -27,7 +29,11 @@ for level in [4]
 
     # Find inner points and create the eigenmatrix
     @verbose("Generate eigenmatrix")
-    inner_list, mat = create_eigenmatrix_high_order(grid, number_inside)
+    if HIGH_ORDER
+        inner_list, mat = create_eigenmatrix_high_order(grid, number_inside)
+    else
+        inner_list, mat = create_eigenmatrix(grid, number_inside)
+    end
 
     @verbose("Solve eigenproblem")
     values = solve_eigenproblem(mat, find_vectors=false)
@@ -50,23 +56,27 @@ for level in [4]
     ################
     ## Regression ##
     ################
-    fit = curve_fit(PowerFit, values_root, delta_N)
-    d = fit.coefs[2]  # Slope
-    @printf "Estimate for d: %.3f\n" d
+    if FIT
+        fit = curve_fit(PowerFit, values_root, delta_N)
+        d = fit.coefs[2]  # Slope
+        @printf "Estimate for d: %.3f\n" d
+    end
 
     ###########################
     ## Write results to file ##
     ###########################
     if SAVEDATA
-        filename = @sprintf("delta_N_values_level_%i_grid_constant_%i_num_modes_%i.txt",
+        filename = @sprintf("delta_N_values_level_%i_grid_constant_%i_num_modes_%i%s.txt",
                             level,
                             GRID_CONSTANT,
-                            NUM_MODES)
+                            NUM_MODES,
+                            HIGH_ORDER ? "_nine_point_stencil" : "",
+                            )
         full_filename = string(DATADIR, filename)
         println("Writing results to ", full_filename)
         open(full_filename, "w") do file; write(file, ""); end  # Empty file
         open(full_filename, "a") do file
-            write(file, "# Estimated value of d : ", d, "\n# ------\n")
+            write(file, string("# Estimated value of d : ", d, "\n# ------\n"))
             # Write eigenmodes
             write(file, "# Mode#\t omega/v\n")
             for (i, value) in enumerate(values_root)
@@ -85,7 +95,10 @@ for level in [4]
     ##########
     plt.title(@sprintf("Calculated at level %i with grid constant %i", level, GRID_CONSTANT))
     plt.scatter(sqrt.(values), delta_N, label="\$\\Delta N(\\omega)\$")
-    plt.plot(sqrt.(values), fit.(sqrt.(values)), label=(@sprintf "Curve fit, d = %.3f" d))
+    if FIT
+        plt.plot(sqrt.(values), fit.(sqrt.(values)), label=(@sprintf "Curve fit, d = %.3f" d))
+    end
     plt.legend()
-    plt.show()
+    plt.savefig(@sprintf("delta_N_level_%i_grid_constant_%i_num_modes_%i.pdf", level, GRID_CONSTANT, NUM_MODES))
+    #plt.show()
 end
